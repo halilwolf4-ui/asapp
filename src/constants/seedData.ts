@@ -1,0 +1,237 @@
+import { Item } from '../types';
+import { formatIsoDateOnly, addDays, subDays } from '../utils/dateUtils';
+
+const today = new Date();
+const todayStr = formatIsoDateOnly(today);
+const tomorrowStr = formatIsoDateOnly(addDays(today, 1));
+const yesterdayStr = formatIsoDateOnly(subDays(today, 1));
+const inThreeDaysStr = formatIsoDateOnly(addDays(today, 3));
+
+export const SEED_ITEMS: Item[] = [
+  // 5-YILLIK VİZYON 1 (Kariyer)
+  {
+    id: 'goal-5y-career',
+    title: 'Kendi Tasarım & Ürün Stüdyomu Kurmak',
+    description: 'Uluslararası markalara tipografi ve dijital ürün tasarımı sunan butik bir stüdyo.',
+    horizon: 'fiveYear',
+    startDate: '2026-01-01',
+    endDate: '2031-12-31',
+    status: 'in_progress',
+    priority: 'high',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // 1-YILLIK HEDEF 1 (goal-5y-career altında)
+  {
+    id: 'goal-1y-portfolio',
+    parentId: 'goal-5y-career',
+    title: 'İlk 10 Premium Müşteri ve Portfolyo Lansmanı',
+    description: 'Stüdyonun ilk vitrini ve müşteri edinme kanallarının oturması.',
+    horizon: 'year',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    status: 'in_progress',
+    priority: 'high',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // 1-AYLIK HEDEF 1 (goal-1y-portfolio altında)
+  {
+    id: 'goal-1m-website',
+    parentId: 'goal-1y-portfolio',
+    title: 'Kişisel Marka ve Web Sitesini Canlıya Al',
+    description: 'Etkileyici tipografi ve interaktif vaka analizleri içeren site.',
+    horizon: 'month',
+    startDate: todayStr.slice(0, 7) + '-01',
+    status: 'in_progress',
+    priority: 'high',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // 1-HAFTALIK HEDEF 1 (goal-1m-website altında)
+  {
+    id: 'goal-1w-cases',
+    parentId: 'goal-1m-website',
+    title: 'Case Study & Proje Detaylarını Tamamla',
+    description: 'Son iki projenin tasarım kararlarını ve görsellerini toparla.',
+    horizon: 'week',
+    startDate: todayStr,
+    status: 'in_progress',
+    priority: 'high',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // GÜNLÜK GÖREVLER (goal-1w-cases altında)
+  {
+    id: 'task-d-1',
+    parentId: 'goal-1w-cases',
+    title: 'Proje mockup ve tipografi gridini tamamla',
+    description: 'Figma üzerindeki ekran görüntülerini yüksek çözünürlükte dışa aktar.',
+    horizon: 'day',
+    startDate: todayStr,
+    time: '09:30',
+    status: 'done',
+    priority: 'high',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-d-2',
+    parentId: 'goal-1w-cases',
+    title: 'Referans müşteri metinlerini ve alıntıları düzenle',
+    description: 'Gelen müşteri geri bildirimlerini vurgulu tipografi ile siteye yerleştir.',
+    horizon: 'day',
+    startDate: todayStr,
+    time: '14:00',
+    status: 'in_progress',
+    manualProgress: 60,
+    priority: 'medium',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-d-3',
+    parentId: 'goal-1w-cases',
+    title: 'Canlı sunucu ve domain yönlendirmesini test et',
+    description: 'DNS kayıtlarını ve mobil performans skorlarını incele.',
+    horizon: 'day',
+    startDate: tomorrowStr,
+    time: '11:00',
+    status: 'todo',
+    priority: 'medium',
+    categoryId: 'career',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // 5-YILLIK VİZYON 2 (Sağlık & Yaşam)
+  {
+    id: 'goal-5y-health',
+    title: 'Maraton Koşucusu & Zinde Atletik Yaşam',
+    description: 'Düzenli beslenme, dayanıklılık ve mental dinginlik ritüelleri.',
+    horizon: 'fiveYear',
+    startDate: '2026-01-01',
+    endDate: '2031-12-31',
+    status: 'in_progress',
+    priority: 'high',
+    categoryId: 'health',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // 1-YILLIK HEDEF 2 (goal-5y-health altında)
+  {
+    id: 'goal-1y-marathon',
+    parentId: 'goal-5y-health',
+    title: 'İstanbul Yarı Maratonunu 2 Saatin Altında Bitir',
+    description: 'Nisan ayındaki resmi yarış için hedef tempo: 5:40 dk/km.',
+    horizon: 'year',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    status: 'in_progress',
+    priority: 'high',
+    categoryId: 'health',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // 1-AYLIK HEDEF 2 (goal-1y-marathon altında)
+  {
+    id: 'goal-1m-mileage',
+    parentId: 'goal-1y-marathon',
+    title: 'Haftalık 30km Düzenli Koşu Hacmine Ulaş',
+    description: 'Sakatlıksız hacim artışı ve toparlanma seansları.',
+    horizon: 'month',
+    startDate: todayStr.slice(0, 7) + '-01',
+    status: 'in_progress',
+    priority: 'medium',
+    categoryId: 'health',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // GÜNLÜK SAĞLIK GÖREVLERİ
+  {
+    id: 'task-health-1',
+    parentId: 'goal-1m-mileage',
+    title: 'Sabah 5K Tempolu Koşu & Dinamik Esneme',
+    description: 'Sahil parkurunda nabız kontrolü ile 28 dakikalık koşu.',
+    horizon: 'day',
+    startDate: todayStr,
+    time: '07:30',
+    status: 'done',
+    priority: 'high',
+    categoryId: 'health',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-health-2',
+    title: 'Yoga Seansı & Omurga Mobilite',
+    description: 'Stüdyoda 60 dakikalık vinyasa flow akışı.',
+    horizon: 'day',
+    startDate: todayStr,
+    time: '18:30',
+    location: 'Nefes Yoga Stüdyosu',
+    status: 'todo',
+    priority: 'medium',
+    categoryId: 'health',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+
+  // SOSYAL & KİŞİSEL GÜNLÜK GÖREVLER (Bağımsız)
+  {
+    id: 'task-social-1',
+    title: 'Tubik Cuma Kutlaması & Akşam Yemeği',
+    description: 'Ekiple proje teslimi kutlaması ve kahve sohbeti.',
+    horizon: 'day',
+    startDate: todayStr,
+    time: '20:00',
+    location: 'Moda Sahnesi Yanı',
+    status: 'todo',
+    priority: 'low',
+    categoryId: 'life',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-finance-1',
+    title: 'Aylık tasarruf & yatırım portföyünü gözden geçir',
+    description: 'Eurobond ve hisse dağılımını hesap tablosuna işle.',
+    horizon: 'day',
+    startDate: yesterdayStr,
+    status: 'done',
+    priority: 'medium',
+    categoryId: 'finance',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    completedAt: new Date().toISOString(),
+  },
+  {
+    id: 'task-learning-1',
+    title: 'Kitap: Tipografi ve Ritim (30 sayfa)',
+    description: 'Kitaptaki grid hiyerarşisi bölümünü incele ve not al.',
+    horizon: 'day',
+    startDate: inThreeDaysStr,
+    time: '21:00',
+    status: 'todo',
+    priority: 'low',
+    categoryId: 'learning',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+

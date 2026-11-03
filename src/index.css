@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-deep: #0D133D;
+  --color-bg-surface: #141B4E;
+  --color-bg-card: #1B2464;
+  --color-bg-elevated: #242F7E;
+
+  --color-accent-pink: #FF3D7F;
+  --color-accent-coral: #FF5E7E;
+  --color-accent-mint: #2EE6B6;
+  --color-accent-yellow: #FFC038;
+  --color-accent-purple: #8A4FFF;
+
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #9FAACC;
+  --color-text-muted: #647099;
+  --color-text-accent: #FF3D7F;
+}
+
+/* Light theme tokens readiness */
+.light {
+  --color-bg-deep: #F4F6FC;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-card: #EAEFF9;
+  --color-bg-elevated: #DFE7F5;
+
+  --color-accent-pink: #FF3D7F;
+  --color-accent-coral: #E0356D;
+  --color-accent-mint: #0FB888;
+  --color-accent-yellow: #D99600;
+  --color-accent-purple: #7038DB;
+
+  --color-text-primary: #121826;
+  --color-text-secondary: #4B5565;
+  --color-text-muted: #838EA0;
+  --color-text-accent: #FF3D7F;
+}
+
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark;
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tablet touch scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Organic Gradient Wave Animation */
+@keyframes waveFlow {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-3%, 2%, 0) scale(1.05) rotate(2deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+}
+
+.animate-wave-slow {
+  animation: waveFlow 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-wave-reverse {
+  animation: waveFlow 28s ease-in-out infinite reverse;
+  will-change: transform;
+}
+
