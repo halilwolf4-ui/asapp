@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#1E286D" />
+      <stop offset="100%" stopColor="#0D133D" />
+    </linearGradient>
+    <linearGradient id="aGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#FF3D7F" />
+      <stop offset="100%" stopColor="#FF5E8E" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="36" fill="url(#bgGrad)"/>
+  <!-- Bold modern stylized 'A' for Asapp -->
+  <path d="M64 24 L94 98 L76 98 L69 80 L59 80 L52 98 L34 98 Z M64 48 L61.5 70 L66.5 70 Z" fill="url(#aGrad)"/>
+  <!-- Mint dot accent -->
+  <circle cx="94" cy="94" r="9" fill="#2EE6B6"/>
+</svg>
