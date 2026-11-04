@@ -1,4 +1,4 @@
-import { Item } from '../types';
+import { Item, Book } from '../types';
 import { formatIsoDateOnly, addDays, subDays } from '../utils/dateUtils';
 
 const today = new Date();
@@ -230,6 +230,106 @@ export const SEED_ITEMS: Item[] = [
     status: 'todo',
     priority: 'low',
     categoryId: 'learning',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const SEED_BOOKS: Book[] = [
+  {
+    id: 'book-1',
+    title: 'Kendime Düşünceler',
+    author: 'Marcus Aurelius',
+    totalPages: 184,
+    readPages: 184,
+    status: 'read',
+    completedDate: '2026-02-14',
+    rating: 5,
+    genre: 'Felsefe',
+    coverColor: '#8A4FFF',
+    notes: 'Stoacı felsefenin en saf ve samimi yansıması. Dış dünyada kontrol edemediğimiz olaylara değil, kendi tepkilerimize ve zihnimizin dinginliğine odaklanmanın değerini öğretiyor.',
+    quotes: [
+      {
+        id: 'q-1-1',
+        text: 'Ruhun rengi, düşüncelerinin rengidir. Neyi sık sık düşünürsen, zihnin onun şeklini alır.',
+        page: 48,
+      },
+      {
+        id: 'q-1-2',
+        text: 'Sabah uyandığında yaşamanın, nefes almanın, düşünmenin ve sevmenin ne büyük bir ayrıcalık olduğunu hatırla.',
+        page: 72,
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'book-2',
+    title: 'Atomik Alışkanlıklar',
+    author: 'James Clear',
+    totalPages: 320,
+    readPages: 320,
+    status: 'read',
+    completedDate: '2026-03-20',
+    rating: 5,
+    genre: 'Kişisel Gelişim',
+    coverColor: '#FF3D7F',
+    notes: 'Küçük %1\'lik iyileşmelerin bileşik getirisi üzerine yazılmış en pratik rehber. Sonuçlara değil kimliğe odaklanmanın alışkanlıkları nasıl kalıcı kıldığını mükemmel açıklıyor.',
+    quotes: [
+      {
+        id: 'q-2-1',
+        text: 'Hedeflerinizin seviyesine yükselmezsiniz, sistemlerinizin seviyesine düşersiniz.',
+        page: 27,
+      },
+      {
+        id: 'q-2-2',
+        text: 'Her eylem, gelecekte olmak istediğiniz kişiye verdiğiniz bir oydur.',
+        page: 38,
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'book-3',
+    title: 'Cesur Yeni Dünya',
+    author: 'Aldous Huxley',
+    totalPages: 272,
+    readPages: 272,
+    status: 'read',
+    completedDate: '2025-11-10',
+    rating: 5,
+    genre: 'Bilim Kurgu',
+    coverColor: '#2EE6B6',
+    notes: 'Teknolojinin, tüketim kültürünün ve konforun insan ruhunu nasıl hissizleştirebileceğine dair sarsıcı ve zamansız bir başyapıt.',
+    quotes: [
+      {
+        id: 'q-3-1',
+        text: 'Gerçek mutluluk hiçbir zaman görkemli değildir; acı çekmeyi göze almayanlar onu tadamaz.',
+        page: 182,
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'book-4',
+    title: 'Kavramlar ve Biçimler',
+    author: 'Juhani Pallasmaa',
+    totalPages: 210,
+    readPages: 95,
+    status: 'reading',
+    rating: 4,
+    genre: 'Tasarım & Mimarlık',
+    coverColor: '#FFB800',
+    notes: 'Gözün egemenliğine karşı duyuların mimarlığı. Dokunma, ses ve mekansal hafızanın tasarım üzerindeki şiirsel etkisi.',
+    quotes: [
+      {
+        id: 'q-4-1',
+        text: 'Mekan, varlığımızın sessiz bir genişlemesidir; onun içinde hem kendimizi hem dünyayı hissederiz.',
+        page: 64,
+      },
+    ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },

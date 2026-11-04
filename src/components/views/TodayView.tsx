@@ -5,7 +5,7 @@ import {
   formatIsoDateOnly,
   parseISO,
 } from '../../utils/dateUtils';
-import { Check, Clock, Plus, Edit2, Sparkles, Target, ArrowUpRight } from 'lucide-react';
+import { Check, Clock, Plus, Edit2, Sparkles, Target, ArrowUpRight, Repeat, CheckCircle2 } from 'lucide-react';
 import { calculateAllItemsProgress } from '../../utils/progressCalculator';
 
 export const TodayView: React.FC = () => {
@@ -15,6 +15,7 @@ export const TodayView: React.FC = () => {
     openCreateModal,
     openEditModal,
     toggleItemStatus,
+    finishItemAndClearFutureRecurrences,
     quote,
     setQuote,
     setActiveView,
@@ -208,7 +209,7 @@ export const TodayView: React.FC = () => {
                       className="flex-1 cursor-pointer min-w-0"
                       onClick={() => openEditModal(item)}
                     >
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         {item.time && (
                           <span className="flex items-center gap-1 text-xs font-bold text-accent-pink tabular-nums">
                             <Clock className="w-3.5 h-3.5" />
@@ -224,6 +225,12 @@ export const TodayView: React.FC = () => {
                         >
                           {cat?.name || 'Genel'}
                         </span>
+                        {item.recurrenceGroupId && (
+                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-accent-pink/15 text-accent-pink">
+                            <Repeat className="w-3 h-3" />
+                            <span>Tekrarlayan</span>
+                          </span>
+                        )}
                       </div>
 
                       <h3
@@ -250,6 +257,29 @@ export const TodayView: React.FC = () => {
                         </p>
                       )}
                     </div>
+
+                    {/* Quick Finish Button ("Bitir") */}
+                    {!isDone ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          finishItemAndClearFutureRecurrences(item.id);
+                        }}
+                        className="self-center min-h-[38px] px-3.5 py-1.5 rounded-xl bg-accent-mint/15 hover:bg-accent-mint/25 text-accent-mint text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border border-accent-mint/30 opacity-80 group-hover:opacity-100 hover:scale-105 active:scale-95 shrink-0"
+                        title={
+                          item.recurrenceGroupId
+                            ? 'Görevi %100 bitir ve gelecekteki tekrarları sil'
+                            : 'Görevi %100 tamamla'
+                        }
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Bitir</span>
+                      </button>
+                    ) : (
+                      <span className="self-center text-xs font-black text-accent-mint tabular-nums shrink-0 px-2 py-1 bg-accent-mint/10 rounded-lg">
+                        %100
+                      </span>
+                    )}
                   </div>
                 );
               })

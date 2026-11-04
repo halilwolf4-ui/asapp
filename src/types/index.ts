@@ -36,6 +36,10 @@ export interface Item {
   // Extra metadata
   location?: string;
   recurrence?: 'daily' | 'weekly' | 'monthly' | 'none';
+  recurrenceGroupId?: string;
+  recurrenceDaysOfWeek?: number[]; // [0..6] (0=Sun, 1=Mon, ..., 6=Sat)
+  recurrenceDaysOfMonth?: number[]; // [1..31]
+  recurrenceEndDate?: string; // 'YYYY-MM-DD'
   tags?: string[];
   
   createdAt: string;
@@ -52,5 +56,29 @@ export interface CalculatedItem extends Item {
   children?: CalculatedItem[];
 }
 
-export type ViewMode = 'today' | 'week' | 'month' | 'year' | 'fiveYear' | 'goals';
+export interface BookQuote {
+  id: string;
+  text: string;
+  page?: number | string;
+}
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  totalPages: number;
+  readPages?: number;
+  status: 'read' | 'reading' | 'to_read';
+  completedDate?: string; // 'YYYY-MM-DD'
+  startDate?: string;
+  rating?: number; // 1 to 5
+  genre?: string;
+  coverColor?: string; // hex color for spine/cover gradient
+  notes?: string;
+  quotes: BookQuote[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ViewMode = 'today' | 'week' | 'month' | 'year' | 'fiveYear' | 'goals' | 'books';
 

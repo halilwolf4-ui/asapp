@@ -11,7 +11,7 @@ import {
   isSameDay,
   parseISO,
 } from '../../utils/dateUtils';
-import { ChevronLeft, ChevronRight, Plus, Check, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, Repeat, CheckCircle2 } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -31,6 +31,7 @@ interface DraggableTaskProps {
   isDone: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  onFinish?: () => void;
 }
 
 const DraggableTask: React.FC<DraggableTaskProps> = ({
@@ -39,6 +40,7 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({
   isDone,
   onToggle,
   onEdit,
+  onFinish,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
@@ -81,17 +83,39 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({
             onEdit();
           }}
         >
-          <div className="flex items-center gap-1.5 mb-0.5">
-            {item.time && (
-              <span className="flex items-center gap-0.5 text-[10px] font-black text-accent-pink tabular-nums">
-                <Clock className="w-2.5 h-2.5" />
-                {item.time}
-              </span>
+          <div className="flex items-center justify-between gap-1.5 mb-0.5">
+            <div className="flex items-center gap-1.5">
+              {item.time && (
+                <span className="flex items-center gap-0.5 text-[10px] font-black text-accent-pink tabular-nums">
+                  <Clock className="w-2.5 h-2.5" />
+                  {item.time}
+                </span>
+              )}
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: categoryColor || '#FF3D7F' }}
+              />
+              {item.recurrenceGroupId && (
+                <span title="Tekrarlayan Görev">
+                  <Repeat className="w-2.5 h-2.5 text-accent-pink" />
+                </span>
+              )}
+            </div>
+
+            {!isDone && onFinish && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFinish();
+                }}
+                className="opacity-0 group-hover:opacity-100 px-1.5 py-0.5 rounded-md bg-accent-mint/20 hover:bg-accent-mint/30 text-accent-mint text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-0.5"
+                title={item.recurrenceGroupId ? "Görevi bitir ve sonraki tekrarları sil" : "Görevi bitir"}
+              >
+                <CheckCircle2 className="w-2.5 h-2.5 stroke-[2.5]" />
+                <span>Bitir</span>
+              </button>
             )}
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: categoryColor || '#FF3D7F' }}
-            />
           </div>
 
           <p
@@ -118,6 +142,7 @@ interface DroppableColumnProps {
   onAddTask: () => void;
   onToggleItem: (id: string) => void;
   onEditItem: (item: Item) => void;
+  onFinishItem: (id: string) => void;
 }
 
 const DroppableColumn: React.FC<DroppableColumnProps> = ({
@@ -131,6 +156,7 @@ const DroppableColumn: React.FC<DroppableColumnProps> = ({
   onAddTask,
   onToggleItem,
   onEditItem,
+  onFinishItem,
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: dateStr,
@@ -192,6 +218,7 @@ const DroppableColumn: React.FC<DroppableColumnProps> = ({
               isDone={item.status === 'done'}
               onToggle={() => onToggleItem(item.id)}
               onEdit={() => onEditItem(item)}
+              onFinish={() => onFinishItem(item.id)}
             />
           );
         })}
@@ -219,6 +246,7 @@ export const WeekView: React.FC = () => {
     openCreateModal,
     openEditModal,
     toggleItemStatus,
+    finishItemAndClearFutureRecurrences,
     moveItemDate,
   } = usePlannerStore();
 
@@ -337,6 +365,7 @@ export const WeekView: React.FC = () => {
                 onAddTask={() => openCreateModal({ horizon: 'day', date: dateStr })}
                 onToggleItem={toggleItemStatus}
                 onEditItem={openEditModal}
+                onFinishItem={finishItemAndClearFutureRecurrences}
               />
             );
           })}

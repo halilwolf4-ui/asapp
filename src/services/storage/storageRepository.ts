@@ -1,4 +1,4 @@
-import { Item, Category } from '../../types';
+import { Item, Category, Book } from '../../types';
 
 export interface StorageRepository {
   getItems(): Promise<Item[]>;
@@ -7,6 +7,8 @@ export interface StorageRepository {
   saveCategories(categories: Category[]): Promise<void>;
   getQuote(): Promise<string>;
   saveQuote(quote: string): Promise<void>;
+  getBooks(): Promise<Book[]>;
+  saveBooks(books: Book[]): Promise<void>;
   exportData(): Promise<string>;
   importData(jsonData: string): Promise<boolean>;
   clearAll(): Promise<void>;
@@ -15,6 +17,7 @@ export interface StorageRepository {
 const ITEMS_KEY = 'asapp:items';
 const CATEGORIES_KEY = 'asapp:categories';
 const QUOTE_KEY = 'asapp:quote';
+const BOOKS_KEY = 'asapp:books';
 
 // Legacy keys for automatic migration
 const LEGACY_ITEMS_KEY = 'odak_items_v1';
@@ -109,11 +112,27 @@ export class LocalStorageRepository implements StorageRepository {
     localStorage.setItem(QUOTE_KEY, quote);
   }
 
+  async getBooks(): Promise<Book[]> {
+    this.migrateLegacyKeys();
+    const data = localStorage.getItem(BOOKS_KEY);
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  async saveBooks(books: Book[]): Promise<void> {
+    localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+  }
+
   async exportData(): Promise<string> {
     const items = await this.getItems();
     const categories = await this.getCategories();
     const quote = await this.getQuote();
-    return JSON.stringify({ items, categories, quote, exportedAt: new Date().toISOString() }, null, 2);
+    const books = await this.getBooks();
+    return JSON.stringify({ items, categories, quote, books, exportedAt: new Date().toISOString() }, null, 2);
   }
 
   async importData(jsonData: string): Promise<boolean> {
@@ -128,6 +147,9 @@ export class LocalStorageRepository implements StorageRepository {
       if (typeof parsed.quote === 'string') {
         await this.saveQuote(parsed.quote);
       }
+      if (Array.isArray(parsed.books)) {
+        await this.saveBooks(parsed.books);
+      }
       return true;
     } catch (e) {
       console.error('Failed to import data', e);
@@ -139,6 +161,7 @@ export class LocalStorageRepository implements StorageRepository {
     localStorage.removeItem(ITEMS_KEY);
     localStorage.removeItem(CATEGORIES_KEY);
     localStorage.removeItem(QUOTE_KEY);
+    localStorage.removeItem(BOOKS_KEY);
     localStorage.removeItem(LEGACY_ITEMS_KEY);
     localStorage.removeItem(LEGACY_CATEGORIES_KEY);
     localStorage.removeItem(LEGACY_QUOTE_KEY);

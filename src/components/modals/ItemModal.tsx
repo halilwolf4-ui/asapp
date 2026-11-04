@@ -4,7 +4,19 @@ import { Horizon, Priority, ItemStatus } from '../../types';
 import { HORIZON_LABELS } from '../../constants/categories';
 import { calculateAllItemsProgress } from '../../utils/progressCalculator';
 import { CustomSelect, SelectOption } from '../common/CustomSelect';
-import { X, Trash2, Lock, AlertTriangle } from 'lucide-react';
+import { X, Trash2, Lock, AlertTriangle, Repeat, Calendar, CheckCircle2 } from 'lucide-react';
+import { formatIsoDateOnly, parseISO, addWeeks, addMonths } from '../../utils/dateUtils';
+import { generateRecurrenceDates } from '../../utils/recurrenceUtils';
+
+const WEEKDAY_OPTIONS = [
+  { day: 1, label: 'Pzt', full: 'Pazartesi' },
+  { day: 2, label: 'Sal', full: 'Salı' },
+  { day: 3, label: 'Çar', full: 'Çarşamba' },
+  { day: 4, label: 'Per', full: 'Perşembe' },
+  { day: 5, label: 'Cum', full: 'Cuma' },
+  { day: 6, label: 'Cmt', full: 'Cumartesi' },
+  { day: 0, label: 'Paz', full: 'Pazar' },
+];
 
 export const ItemModal: React.FC = () => {
   const {
@@ -20,6 +32,8 @@ export const ItemModal: React.FC = () => {
     addItem,
     updateItem,
     deleteItem,
+    finishItemAndClearFutureRecurrences,
+    deleteRecurrenceSeries,
   } = usePlannerStore();
 
   const [title, setTitle] = useState('');
@@ -34,6 +48,14 @@ export const ItemModal: React.FC = () => {
   const [parentId, setParentId] = useState<string>('');
   const [manualProgress, setManualProgress] = useState<number>(0);
   const [status, setStatus] = useState<ItemStatus>('todo');
+
+  // Recurrence states
+  const [recurrenceMode, setRecurrenceMode] = useState<'single' | 'recurring'>('single');
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [selectedDaysOfWeek, setSelectedDaysOfWeek] = useState<number[]>([1]);
+  const [selectedDaysOfMonth, setSelectedDaysOfMonth] = useState<number[]>([1]);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<string>('');
+  const [recurrenceError, setRecurrenceError] = useState<string>('');
 
   const [showCascadeConfirm, setShowCascadeConfirm] = useState(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
@@ -77,6 +99,17 @@ export const ItemModal: React.FC = () => {
       setParentId(editingItem.parentId || '');
       setManualProgress(editingItem.manualProgress || 0);
 
+      // Recurrence details
+      if (editingItem.recurrenceGroupId) {
+        setRecurrenceMode('recurring');
+        setRecurrenceFrequency((editingItem.recurrence as 'daily' | 'weekly' | 'monthly') || 'weekly');
+        setSelectedDaysOfWeek(editingItem.recurrenceDaysOfWeek || [1]);
+        setSelectedDaysOfMonth(editingItem.recurrenceDaysOfMonth || [1]);
+        setRecurrenceEndDate(editingItem.recurrenceEndDate || '');
+      } else {
+        setRecurrenceMode('single');
+      }
+
       // If it has children, status is derived from children
       const calc = calculatedMap.get(editingItem.id);
       if (calc && !calc.isLeaf) {
@@ -86,10 +119,13 @@ export const ItemModal: React.FC = () => {
       }
     } else {
       // Create defaults
+      const initialDate = modalPresetDate || selectedDate;
+      const initD = initialDate ? parseISO(initialDate) : new Date();
+
       setTitle('');
       setDescription('');
       setHorizon(modalPresetHorizon || 'day');
-      setStartDate(modalPresetDate || selectedDate);
+      setStartDate(initialDate);
       setEndDate('');
       setTime('');
       setLocation('');
@@ -98,6 +134,13 @@ export const ItemModal: React.FC = () => {
       setParentId(modalPresetParentId || '');
       setManualProgress(0);
       setStatus('todo');
+
+      setRecurrenceMode('single');
+      setRecurrenceFrequency('weekly');
+      setSelectedDaysOfWeek([initD.getDay()]);
+      setSelectedDaysOfMonth([initD.getDate()]);
+      setRecurrenceEndDate(formatIsoDateOnly(addMonths(initD, 1)));
+      setRecurrenceError('');
     }
     setShowCascadeConfirm(false);
   }, [editingItem, isItemModalOpen, modalPresetHorizon, modalPresetParentId, modalPresetDate, selectedDate, categories]);
@@ -185,6 +228,52 @@ export const ItemModal: React.FC = () => {
     setShowCascadeConfirm(false);
   };
 
+  const handlePresetEndDate = (weeks?: number, months?: number) => {
+    const base = startDate ? parseISO(startDate) : new Date();
+    let target = base;
+    if (weeks) target = addWeeks(target, weeks);
+    if (months) target = addMonths(target, months);
+    setRecurrenceEndDate(formatIsoDateOnly(target));
+    setRecurrenceError('');
+  };
+
+  const toggleDayOfWeek = (day: number) => {
+    setRecurrenceError('');
+    if (selectedDaysOfWeek.includes(day)) {
+      if (selectedDaysOfWeek.length > 1) {
+        setSelectedDaysOfWeek(selectedDaysOfWeek.filter((d) => d !== day));
+      }
+    } else {
+      setSelectedDaysOfWeek([...selectedDaysOfWeek, day].sort((a, b) => {
+        const orderA = a === 0 ? 7 : a;
+        const orderB = b === 0 ? 7 : b;
+        return orderA - orderB;
+      }));
+    }
+  };
+
+  const toggleDayOfMonth = (day: number) => {
+    setRecurrenceError('');
+    if (selectedDaysOfMonth.includes(day)) {
+      if (selectedDaysOfMonth.length > 1) {
+        setSelectedDaysOfMonth(selectedDaysOfMonth.filter((d) => d !== day));
+      }
+    } else {
+      setSelectedDaysOfMonth([...selectedDaysOfMonth, day].sort((a, b) => a - b));
+    }
+  };
+
+  const previewDates =
+    !editingItem && recurrenceMode === 'recurring' && recurrenceEndDate && startDate
+      ? generateRecurrenceDates({
+          frequency: recurrenceFrequency,
+          daysOfWeek: selectedDaysOfWeek,
+          daysOfMonth: selectedDaysOfMonth,
+          startDate,
+          endDate: recurrenceEndDate,
+        })
+      : [];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -205,6 +294,25 @@ export const ItemModal: React.FC = () => {
         status: hasChildren ? editingCalculated?.derivedStatus || status : status,
       });
     } else {
+      if (recurrenceMode === 'recurring') {
+        if (!recurrenceEndDate) {
+          setRecurrenceError('Lütfen tekrarların biteceği son tarihi belirleyin.');
+          return;
+        }
+        if (recurrenceEndDate < startDate) {
+          setRecurrenceError('Son tarih, başlangıç tarihinden önce olamaz.');
+          return;
+        }
+        if (recurrenceFrequency === 'weekly' && selectedDaysOfWeek.length === 0) {
+          setRecurrenceError('Lütfen en az bir gün seçin.');
+          return;
+        }
+        if (recurrenceFrequency === 'monthly' && selectedDaysOfMonth.length === 0) {
+          setRecurrenceError('Lütfen ayın en az bir gününü seçin.');
+          return;
+        }
+      }
+
       addItem({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -218,6 +326,16 @@ export const ItemModal: React.FC = () => {
         parentId: parentId || undefined,
         manualProgress,
         status,
+        recurrence: recurrenceMode === 'recurring' ? recurrenceFrequency : 'none',
+        recurrenceDaysOfWeek:
+          recurrenceMode === 'recurring' && recurrenceFrequency === 'weekly'
+            ? selectedDaysOfWeek
+            : undefined,
+        recurrenceDaysOfMonth:
+          recurrenceMode === 'recurring' && recurrenceFrequency === 'monthly'
+            ? selectedDaysOfMonth
+            : undefined,
+        recurrenceEndDate: recurrenceMode === 'recurring' ? recurrenceEndDate : undefined,
       });
     }
   };
@@ -352,7 +470,7 @@ export const ItemModal: React.FC = () => {
           <div className="grid grid-cols-1 tablet-p:grid-cols-2 gap-4">
             <div>
               <label className="text-xs uppercase font-extrabold tracking-wider text-text-muted block mb-2">
-                Tarih
+                {recurrenceMode === 'recurring' ? 'Başlangıç Tarihi' : 'Tarih'}
               </label>
               <input
                 type="date"
@@ -388,6 +506,246 @@ export const ItemModal: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* RECURRENCE SECTION */}
+          {editingItem ? (
+            editingItem.recurrenceGroupId && (
+              <div className="p-4 rounded-2xl bg-accent-pink/10 border border-accent-pink/30 flex items-start gap-3">
+                <Repeat className="w-5 h-5 text-accent-pink shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-black uppercase text-white tracking-wider">
+                    Tekrarlayan Görev Serisi
+                  </h4>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Bu görev tekrarlayan bir serinin parçasıdır. Aşağıdaki "Bitir" butonuna basarak bu görevi %100 tamamlayabilir ve kalan gelecek tekrarları silebilirsiniz.
+                  </p>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="space-y-3 pt-2">
+              <label className="text-xs uppercase font-extrabold tracking-wider text-text-muted block">
+                Tekrar Durumu (Sıklık)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecurrenceMode('single');
+                    setRecurrenceError('');
+                  }}
+                  className={`min-h-[46px] px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    recurrenceMode === 'single'
+                      ? 'bg-accent-pink text-white shadow-[0_0_16px_rgba(255,61,127,0.4)]'
+                      : 'bg-white/5 text-text-muted hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Bir Defalık</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecurrenceMode('recurring');
+                    setRecurrenceError('');
+                  }}
+                  className={`min-h-[46px] px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    recurrenceMode === 'recurring'
+                      ? 'bg-accent-pink text-white shadow-[0_0_16px_rgba(255,61,127,0.4)]'
+                      : 'bg-white/5 text-text-muted hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Repeat className="w-4 h-4" />
+                  <span>Her (Tekrarlayan)</span>
+                </button>
+              </div>
+
+              {/* If Recurring is selected: Frequency, Days & End Date */}
+              {recurrenceMode === 'recurring' && (
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4 transition-all">
+                  {/* Frequency: Gün, Hafta, Ay */}
+                  <div>
+                    <label className="text-[11px] uppercase font-extrabold tracking-wider text-accent-pink block mb-2">
+                      Tekrar Sıklığı
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          { id: 'daily', label: 'Her Gün' },
+                          { id: 'weekly', label: 'Her Hafta' },
+                          { id: 'monthly', label: 'Her Ay' },
+                        ] as const
+                      ).map((freq) => (
+                        <button
+                          key={freq.id}
+                          type="button"
+                          onClick={() => {
+                            setRecurrenceFrequency(freq.id);
+                            setRecurrenceError('');
+                          }}
+                          className={`min-h-[40px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
+                            recurrenceFrequency === freq.id
+                              ? 'bg-accent-pink text-white shadow-[0_0_12px_rgba(255,61,127,0.3)]'
+                              : 'bg-white/5 text-text-muted hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          {freq.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* If Weekly: Weekday Pills (multi-select) */}
+                  {recurrenceFrequency === 'weekly' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[11px] uppercase font-extrabold tracking-wider text-text-muted">
+                          Tekrarlanacak Günler (Birden fazla seçilebilir)
+                        </label>
+                        <span className="text-[10px] text-text-muted">
+                          {selectedDaysOfWeek.length} gün seçildi
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {WEEKDAY_OPTIONS.map((w) => {
+                          const isSelected = selectedDaysOfWeek.includes(w.day);
+                          return (
+                            <button
+                              key={w.day}
+                              type="button"
+                              onClick={() => toggleDayOfWeek(w.day)}
+                              className={`min-h-[42px] rounded-xl text-xs font-extrabold flex flex-col items-center justify-center transition-all ${
+                                isSelected
+                                  ? 'bg-accent-pink text-white shadow-[0_0_10px_rgba(255,61,127,0.4)]'
+                                  : 'bg-white/5 text-text-muted hover:text-white hover:bg-white/10'
+                              }`}
+                              title={w.full}
+                            >
+                              <span>{w.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If Monthly: Day of Month Buttons (1..31 multi-select) */}
+                  {recurrenceFrequency === 'monthly' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[11px] uppercase font-extrabold tracking-wider text-text-muted">
+                          Ayın Kaçıncı Günleri? (Birden fazla seçilebilir)
+                        </label>
+                        <span className="text-[10px] text-text-muted">
+                          {selectedDaysOfMonth.length} gün seçildi
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-7 tablet-p:grid-cols-10 gap-1.5 max-h-40 overflow-y-auto p-1.5 bg-black/25 rounded-xl border border-white/5">
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((dayNum) => {
+                          const isSelected = selectedDaysOfMonth.includes(dayNum);
+                          return (
+                            <button
+                              key={dayNum}
+                              type="button"
+                              onClick={() => toggleDayOfMonth(dayNum)}
+                              className={`h-9 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${
+                                isSelected
+                                  ? 'bg-accent-pink text-white shadow-[0_0_8px_rgba(255,61,127,0.4)]'
+                                  : 'bg-white/5 text-text-muted hover:text-white hover:bg-white/10'
+                              }`}
+                            >
+                              {dayNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* End Date (Görev Son Tarihi - Required for recurrence!) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[11px] uppercase font-extrabold tracking-wider text-text-muted flex items-center gap-1">
+                        <span>Görev Son Tarihi (Tekrarların Biteceği Tarih) *</span>
+                      </label>
+                      <span className="text-[10px] text-accent-coral font-bold">Zorunlu</span>
+                    </div>
+                    <input
+                      type="date"
+                      required
+                      min={startDate || undefined}
+                      value={recurrenceEndDate}
+                      onChange={(e) => {
+                        setRecurrenceEndDate(e.target.value);
+                        setRecurrenceError('');
+                      }}
+                      className="w-full min-h-[46px] bg-white/5 border border-white/10 focus:border-accent-pink rounded-2xl px-4 py-2.5 text-sm text-white focus:outline-none"
+                    />
+
+                    {/* Quick presets for end date */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className="text-[10px] font-bold text-text-muted uppercase">Hızlı:</span>
+                      <button
+                        type="button"
+                        onClick={() => handlePresetEndDate(2, undefined)}
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-bold text-text-secondary hover:text-white transition-colors"
+                      >
+                        +2 Hafta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePresetEndDate(undefined, 1)}
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-bold text-text-secondary hover:text-white transition-colors"
+                      >
+                        +1 Ay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePresetEndDate(undefined, 3)}
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-bold text-text-secondary hover:text-white transition-colors"
+                      >
+                        +3 Ay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePresetEndDate(undefined, 6)}
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-bold text-text-secondary hover:text-white transition-colors"
+                      >
+                        +6 Ay
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Recurrence Summary & Estimation Note */}
+                  {previewDates.length > 0 && (
+                    <div className="p-3 rounded-xl bg-accent-mint/10 border border-accent-mint/20 text-xs text-accent-mint flex items-center justify-between">
+                      <span>
+                        {recurrenceFrequency === 'daily' && '📅 Her Gün'}
+                        {recurrenceFrequency === 'weekly' &&
+                          `📅 Her Hafta (${selectedDaysOfWeek
+                            .map((d) => WEEKDAY_OPTIONS.find((w) => w.day === d)?.label)
+                            .filter(Boolean)
+                            .join(', ')})`}
+                        {recurrenceFrequency === 'monthly' &&
+                          `📅 Her Ay (${selectedDaysOfMonth.join(', ')}. günleri)`}
+                      </span>
+                      <span className="font-extrabold tabular-nums bg-accent-mint/20 px-2 py-0.5 rounded-full">
+                        {previewDates.length} adet görev
+                      </span>
+                    </div>
+                  )}
+
+                  {recurrenceError && (
+                    <p className="text-xs text-accent-coral font-bold flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>{recurrenceError}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Progress & Status Section (Automatic vs Manual Rule) */}
           {editingItem && (
@@ -490,35 +848,68 @@ export const ItemModal: React.FC = () => {
         </form>
 
         {/* MODAL STICKY FOOTER (Shrink-0 Bottom Pinned) */}
-        <div className="p-4 px-6 border-t border-white/10 bg-[#0E143E] shrink-0 flex items-center justify-between gap-4">
+        <div className="p-4 px-6 border-t border-white/10 bg-[#0E143E] shrink-0 flex flex-wrap items-center justify-between gap-3">
           {editingItem ? (
-            <button
-              type="button"
-              onClick={() => {
-                deleteItem(editingItem.id);
-                closeModal();
-              }}
-              className="min-h-[48px] px-4 py-3 rounded-2xl bg-white/5 hover:bg-accent-coral/20 text-accent-coral font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Sil</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  deleteItem(editingItem.id);
+                  closeModal();
+                }}
+                className="min-h-[46px] px-3.5 py-2.5 rounded-2xl bg-white/5 hover:bg-accent-coral/20 text-accent-coral font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+                title="Sadece bu görevi sil"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden tablet-p:inline">Sil</span>
+              </button>
+
+              {editingItem.recurrenceGroupId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteRecurrenceSeries(editingItem.recurrenceGroupId!);
+                    closeModal();
+                  }}
+                  className="min-h-[46px] px-3.5 py-2.5 rounded-2xl bg-accent-coral/10 hover:bg-accent-coral/20 text-accent-coral border border-accent-coral/20 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+                  title="Tüm tekrarlayan seriyi sil"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Tüm Seriyi Sil</span>
+                </button>
+              )}
+            </div>
           ) : (
             <div />
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 ml-auto">
+            {editingItem && (
+              <button
+                type="button"
+                onClick={() => {
+                  finishItemAndClearFutureRecurrences(editingItem.id);
+                  closeModal();
+                }}
+                className="min-h-[46px] px-4 py-2.5 rounded-2xl bg-accent-mint/15 hover:bg-accent-mint/25 text-accent-mint border border-accent-mint/30 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-[0_0_16px_rgba(46,230,182,0.15)]"
+                title="Görevi %100 tamamlar ve varsa gelecekteki tekrarları siler"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{editingItem.recurrenceGroupId ? 'Bitir (%100 & Sonrakileri Sil)' : 'Bitir (%100)'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={closeModal}
-              className="min-h-[48px] px-5 py-3 rounded-2xl border border-white/10 hover:border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+              className="min-h-[46px] px-4 py-2.5 rounded-2xl border border-white/10 hover:border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-colors"
             >
               İptal
             </button>
             <button
               type="submit"
               form="item-form"
-              className="min-h-[48px] px-6 py-3 rounded-2xl bg-gradient-to-r from-accent-pink to-[#FF5E8E] text-white font-black text-xs uppercase tracking-wider shadow-[0_8px_24px_rgba(255,61,127,0.35)] hover:shadow-[0_12px_32px_rgba(255,61,127,0.5)] active:scale-95 transition-all"
+              className="min-h-[46px] px-6 py-2.5 rounded-2xl bg-gradient-to-r from-accent-pink to-[#FF5E8E] text-white font-black text-xs uppercase tracking-wider shadow-[0_8px_24px_rgba(255,61,127,0.35)] hover:shadow-[0_12px_32px_rgba(255,61,127,0.5)] active:scale-95 transition-all"
             >
               {editingItem ? 'Kaydet' : 'Hedefi / Görevi Oluştur'}
             </button>

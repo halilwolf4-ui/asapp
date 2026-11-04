@@ -12,7 +12,7 @@ import {
   isSameDay,
   parseISO,
 } from '../../utils/dateUtils';
-import { ChevronLeft, ChevronRight, Plus, Check, Clock, MapPin, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, MapPin, Sparkles, Repeat, CheckCircle2 } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -32,6 +32,7 @@ interface DraggableMonthTaskProps {
   isDone: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  onFinish?: () => void;
 }
 
 const DraggableMonthTask: React.FC<DraggableMonthTaskProps> = ({
@@ -40,6 +41,7 @@ const DraggableMonthTask: React.FC<DraggableMonthTaskProps> = ({
   isDone,
   onToggle,
   onEdit,
+  onFinish,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
@@ -99,6 +101,12 @@ const DraggableMonthTask: React.FC<DraggableMonthTaskProps> = ({
           >
             Görev
           </span>
+          {item.recurrenceGroupId && (
+            <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-accent-pink/15 text-accent-pink">
+              <Repeat className="w-3 h-3" />
+              <span>Tekrarlayan</span>
+            </span>
+          )}
         </div>
 
         <h4
@@ -116,6 +124,21 @@ const DraggableMonthTask: React.FC<DraggableMonthTaskProps> = ({
           </p>
         )}
       </div>
+
+      {!isDone && onFinish && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onFinish();
+          }}
+          className="opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded-xl bg-accent-mint/15 hover:bg-accent-mint/25 text-accent-mint text-[11px] font-black uppercase tracking-wider transition-all self-center shrink-0 border border-accent-mint/30 flex items-center gap-1"
+          title={item.recurrenceGroupId ? 'Görevi bitir ve sonraki tekrarları sil' : 'Görevi bitir'}
+        >
+          <CheckCircle2 className="w-3 h-3 stroke-[2.5]" />
+          <span>Bitir</span>
+        </button>
+      )}
     </div>
   );
 };
@@ -216,6 +239,7 @@ export const MonthView: React.FC = () => {
     openCreateModal,
     openEditModal,
     toggleItemStatus,
+    finishItemAndClearFutureRecurrences,
     moveItemDate,
   } = usePlannerStore();
 
@@ -413,6 +437,7 @@ export const MonthView: React.FC = () => {
                     isDone={isDone}
                     onToggle={() => toggleItemStatus(item.id)}
                     onEdit={() => openEditModal(item)}
+                    onFinish={() => finishItemAndClearFutureRecurrences(item.id)}
                   />
                 );
               })

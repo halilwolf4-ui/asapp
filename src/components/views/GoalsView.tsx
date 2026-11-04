@@ -12,6 +12,8 @@ import {
   Edit,
   Check,
   Filter,
+  Repeat,
+  CheckCircle2,
 } from 'lucide-react';
 
 export const GoalsView: React.FC = () => {
@@ -22,6 +24,7 @@ export const GoalsView: React.FC = () => {
     openEditModal,
     deleteItem,
     toggleItemStatus,
+    finishItemAndClearFutureRecurrences,
   } = usePlannerStore();
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
@@ -133,6 +136,13 @@ export const GoalsView: React.FC = () => {
                       {node.startDate.slice(0, 10)} {node.endDate ? `→ ${node.endDate.slice(0, 10)}` : ''}
                     </span>
                   )}
+
+                  {node.recurrenceGroupId && (
+                    <span className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-accent-pink/15 text-accent-pink">
+                      <Repeat className="w-3 h-3" />
+                      <span>Tekrarlayan</span>
+                    </span>
+                  )}
                 </div>
 
                 <h3
@@ -177,6 +187,20 @@ export const GoalsView: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-1.5 opacity-80 group-hover/item:opacity-100 transition-opacity">
+                {/* Finish / Complete Button */}
+                {node.progress < 100 && (
+                  <button
+                    onClick={() => finishItemAndClearFutureRecurrences(node.id)}
+                    className="min-h-[44px] px-3 py-2 rounded-xl bg-accent-mint/15 hover:bg-accent-mint/25 text-accent-mint text-xs font-bold flex items-center gap-1.5 transition-colors border border-accent-mint/20"
+                    title={node.recurrenceGroupId ? "Görevi bitir ve sonraki tekrarları sil" : "Görevi %100 tamamla"}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span className="text-[11px] uppercase tracking-wider font-extrabold hidden tablet-p:inline">
+                      Bitir
+                    </span>
+                  </button>
+                )}
+
                 {/* Add Child Goal Button */}
                 <button
                   onClick={() => {
