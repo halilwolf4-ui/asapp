@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'fiveYear', label: '5 Yıl' },
   { id: 'goals', label: 'Hedefler' },
   { id: 'books', label: 'Kitaplık' },
+  { id: 'media', label: 'Film & Dizi' },
 ];
 
 export const Navigation: React.FC = () => {

@@ -74,11 +74,44 @@ export interface Book {
   rating?: number; // 1 to 5
   genre?: string;
   coverColor?: string; // hex color for spine/cover gradient
+  coverUrl?: string; // cover image URL or compressed data URL
   notes?: string;
   quotes: BookQuote[];
   createdAt: string;
   updatedAt: string;
 }
 
-export type ViewMode = 'today' | 'week' | 'month' | 'year' | 'fiveYear' | 'goals' | 'books';
+export type ViewMode = 'today' | 'week' | 'month' | 'year' | 'fiveYear' | 'goals' | 'books' | 'media';
+
+export type MediaType = 'movie' | 'series';
+export type MediaStatus = 'watched' | 'watching' | 'waiting_season' | 'to_watch';
+
+export interface MediaItem {
+  id: string;
+  type: MediaType;
+  title: string;
+  originalTitle?: string;
+  director?: string;
+  year?: number;
+  genre?: string;
+  status: MediaStatus;
+  rating?: number; // 1 to 5
+  watchedDate?: string; // 'YYYY-MM-DD'
+  startDate?: string;
+  posterUrl?: string; // Image URL or compressed data URL
+  posterColor?: string; // Fallback theme color for poster box
+  runtimeMinutes?: number; // Film süresi veya dizi toplam süresi
+  notes?: string;
+
+  // Dizi alanları
+  totalSeasons?: number;
+  currentSeason?: number;
+  totalEpisodes?: number;
+  currentEpisode?: number;
+  episodeRuntimeMinutes?: number;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
 

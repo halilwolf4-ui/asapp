@@ -9,8 +9,10 @@ import { YearView } from './components/views/YearView';
 import { FiveYearView } from './components/views/FiveYearView';
 import { GoalsView } from './components/views/GoalsView';
 import { BooksView } from './components/views/BooksView';
+import { MediaView } from './components/views/MediaView';
 import { ItemModal } from './components/modals/ItemModal';
 import { BookModal } from './components/modals/BookModal';
+import { MediaModal } from './components/modals/MediaModal';
 import { StatsDrawer } from './components/stats/StatsDrawer';
 import { Sparkles, Plus, X } from 'lucide-react';
 import { Horizon } from './types';
@@ -23,6 +25,8 @@ export const App: React.FC = () => {
     closeModal,
     isBookModalOpen,
     closeBookModal,
+    isMediaModalOpen,
+    closeMediaModal,
     subGoalTipGoal,
     dismissSubGoalTip,
     openCreateModal,
@@ -38,11 +42,12 @@ export const App: React.FC = () => {
       if (e.key === 'Escape') {
         if (isItemModalOpen) closeModal();
         if (isBookModalOpen) closeBookModal();
+        if (isMediaModalOpen) closeMediaModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isItemModalOpen, closeModal, isBookModalOpen, closeBookModal]);
+  }, [isItemModalOpen, closeModal, isBookModalOpen, closeBookModal, isMediaModalOpen, closeMediaModal]);
 
   return (
     <div className="relative min-h-screen w-full bg-bg-deep text-text-primary flex flex-col tablet-l:flex-row overflow-hidden font-sans select-none">
@@ -61,6 +66,7 @@ export const App: React.FC = () => {
         {activeView === 'fiveYear' && <FiveYearView />}
         {activeView === 'goals' && <GoalsView />}
         {activeView === 'books' && <BooksView />}
+        {activeView === 'media' && <MediaView />}
       </main>
 
       {/* SUB-GOAL CREATION TIP TOAST */}
@@ -121,6 +127,7 @@ export const App: React.FC = () => {
       {/* Modals & Drawers */}
       <ItemModal />
       <BookModal />
+      <MediaModal />
       <StatsDrawer />
     </div>
   );

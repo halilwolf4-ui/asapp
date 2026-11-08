@@ -14,7 +14,10 @@ import {
   Trash2,
   BookMarked,
   Filter,
+  List,
+  Layers,
 } from 'lucide-react';
+import { Book } from '../../types';
 
 export const BooksView: React.FC = () => {
   const { books, openCreateBookModal, openEditBookModal, deleteBook, addQuoteToBook, deleteQuoteFromBook } =
@@ -23,7 +26,9 @@ export const BooksView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'read' | 'reading' | 'to_read'>('all');
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
+  const [displayMode, setDisplayMode] = useState<'flat' | 'byYear'>('flat');
   const [expandedBookIds, setExpandedBookIds] = useState<Set<string>>(new Set());
+  const [failedCoverIds, setFailedCoverIds] = useState<Set<string>>(new Set());
 
   // Inline quick quote draft state for a book
   const [inlineQuoteBookId, setInlineQuoteBookId] = useState<string | null>(null);
@@ -87,6 +92,37 @@ export const BooksView: React.FC = () => {
     });
   }, [books, statusFilter, selectedGenre, searchQuery]);
 
+  // Grouped by year for 'byYear' display mode
+  const booksByYear = useMemo(() => {
+    const groups: { [year: string]: { books: Book[]; totalPages: number } } = {};
+    const noDateKey = 'Tarihsiz';
+
+    filteredBooks.forEach((book) => {
+      let y = noDateKey;
+      if (book.completedDate) {
+        y = book.completedDate.slice(0, 4);
+      }
+      if (!groups[y]) {
+        groups[y] = { books: [], totalPages: 0 };
+      }
+      groups[y].books.push(book);
+      groups[y].totalPages += book.totalPages || 0;
+    });
+
+    const sortedYears = Object.keys(groups).sort((a, b) => {
+      if (a === noDateKey) return 1;
+      if (b === noDateKey) return -1;
+      return parseInt(b, 10) - parseInt(a, 10);
+    });
+
+    return sortedYears.map((year) => ({
+      year,
+      books: groups[year].books,
+      count: groups[year].books.length,
+      totalPages: groups[year].totalPages,
+    }));
+  }, [filteredBooks]);
+
   const toggleExpand = (bookId: string) => {
     setExpandedBookIds((prev) => {
       const next = new Set(prev);
@@ -108,6 +144,286 @@ export const BooksView: React.FC = () => {
     setInlineQuoteText('');
     setInlineQuotePage('');
     setInlineQuoteBookId(null);
+  };
+
+  const renderBookCard = (book: Book) => {
+    const isExpanded = expandedBookIds.has(book.id);
+    const coverBg = book.coverColor || '#8A4FFF';
+    const hasCover = Boolean(book.coverUrl && !failedCoverIds.has(book.id));
+
+    return (
+      <div
+        key={book.id}
+        className="rounded-3xl bg-white/[0.025] hover:bg-white/[0.04] border border-white/10 transition-all duration-300 overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+      >
+        {/* Book Card Main Header (Clickable to Expand) */}
+        <div
+          onClick={() => toggleExpand(book.id)}
+          className="p-5 tablet-p:p-6 cursor-pointer flex flex-col tablet-p:flex-row tablet-p:items-center justify-between gap-4 select-none"
+        >
+          <div className="flex items-start tablet-p:items-center gap-4 min-w-0">
+            {/* Book Spine / Cover Image */}
+            {hasCover ? (
+              <div className="w-12 h-16 rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(0,0,0,0.4)] shrink-0 border border-white/20 transition-transform group-hover:scale-105 bg-black/40">
+                <img
+                  src={book.coverUrl}
+                  alt={book.title}
+                  className="w-full h-full object-cover rounded-xl"
+                  loading="lazy"
+                  onError={() => {
+                    setFailedCoverIds((prev) => {
+                      const next = new Set(prev);
+                      next.add(book.id);
+                      return next;
+                    });
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                className="w-12 h-16 rounded-xl flex flex-col justify-between p-1.5 shadow-[0_8px_16px_rgba(0,0,0,0.4)] shrink-0 border border-white/20 transition-transform group-hover:scale-105"
+                style={{
+                  background: `linear-gradient(135deg, ${coverBg}, ${coverBg}88)`,
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                <Bookmark className="w-3.5 h-3.5 text-white/90 self-end" />
+              </div>
+            )}
+
+            {/* Book Metadata */}
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                {book.genre && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white">
+                    {book.genre}
+                  </span>
+                )}
+
+                <span
+                  className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${
+                    book.status === 'read'
+                      ? 'bg-accent-mint/15 text-accent-mint'
+                      : book.status === 'reading'
+                      ? 'bg-accent-yellow/15 text-accent-yellow'
+                      : 'bg-white/10 text-text-muted'
+                  }`}
+                >
+                  {book.status === 'read'
+                    ? 'Okundu'
+                    : book.status === 'reading'
+                    ? 'Okunuyor'
+                    : 'Okunacak'}
+                </span>
+
+                {book.completedDate && book.status === 'read' && (
+                  <span className="text-[11px] font-bold text-text-muted flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {book.completedDate.slice(0, 10)}
+                  </span>
+                )}
+              </div>
+
+              <h3 className="text-xl tablet-p:text-2xl font-black font-display text-white tracking-tight leading-snug truncate">
+                {book.title}
+              </h3>
+
+              <p className="text-xs font-bold text-text-secondary mt-0.5">
+                {book.author}
+              </p>
+            </div>
+          </div>
+
+          {/* Right side: Pages, Stars & Expand toggle */}
+          <div className="flex items-center justify-between tablet-p:justify-end gap-5 shrink-0 pt-2 tablet-p:pt-0 border-t tablet-p:border-t-0 border-white/5">
+            {/* Star Rating */}
+            {book.rating ? (
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-3.5 h-3.5 ${
+                      i < book.rating!
+                        ? 'fill-accent-yellow text-accent-yellow'
+                        : 'text-white/15'
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {/* Total Pages Badge */}
+            <span className="text-xs font-black text-white/90 tabular-nums px-2.5 py-1 rounded-xl bg-white/5 border border-white/10">
+              {book.status === 'reading' && book.readPages
+                ? `${book.readPages} / ${book.totalPages} sf`
+                : `${book.totalPages} sayfa`}
+            </span>
+
+            {/* Expand icon */}
+            <div className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-text-muted hover:text-white transition-colors">
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* EXPANDABLE SECTION: NOTES & QUOTES */}
+        {isExpanded && (
+          <div className="p-5 tablet-p:p-8 pt-0 border-t border-white/10 bg-black/25 space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* 1. COVER & PERSONAL NOTES */}
+            {(hasCover || book.notes) && (
+              <div className={`flex flex-col ${hasCover ? 'tablet-p:flex-row' : ''} gap-6 pt-5`}>
+                {hasCover && (
+                  <div className="w-28 h-40 shrink-0 rounded-2xl overflow-hidden border border-white/20 shadow-[0_12px_28px_rgba(0,0,0,0.5)] bg-black/40 self-start">
+                    <img
+                      src={book.coverUrl}
+                      alt={book.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+
+                {book.notes && (
+                  <div className="flex-1 p-4 tablet-p:p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2 self-stretch">
+                    <span className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-accent-pink block">
+                      KİŞİSEL NOTLAR & İNCELEME
+                    </span>
+                    <p className="text-sm tablet-p:text-base text-text-secondary leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                      {book.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. QUOTES (Alıntılar - Tırnak içinde ve italik!) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-[0.25em] font-black text-accent-mint flex items-center gap-1.5">
+                  <QuoteIcon className="w-3.5 h-3.5" />
+                  <span>ÖNE ÇIKAN ALINTILAR</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setInlineQuoteBookId(book.id)}
+                  className="px-3 py-1 rounded-xl bg-accent-mint/15 hover:bg-accent-mint/25 text-accent-mint text-[11px] font-black uppercase tracking-wider flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Alıntı Ekle</span>
+                </button>
+              </div>
+
+              {/* Quotes List */}
+              {book.quotes && book.quotes.length > 0 ? (
+                <div className="space-y-3">
+                  {book.quotes.map((quote) => (
+                    <div
+                      key={quote.id}
+                      className="p-4 tablet-p:p-5 rounded-2xl bg-gradient-to-r from-white/[0.04] to-white/[0.01] border-l-4 border-l-accent-mint border-y border-r border-white/5 relative group/quote flex items-start justify-between gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        {/* The italic quote text in quotation marks */}
+                        <p className="font-serif italic text-white/95 text-base tablet-p:text-lg leading-relaxed tracking-wide selection:bg-accent-pink selection:text-white">
+                          “{quote.text}”
+                        </p>
+                        {quote.page && (
+                          <span className="text-xs font-bold text-accent-mint/90 mt-2 block font-sans tracking-wider">
+                            — Sayfa {quote.page}
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => deleteQuoteFromBook(book.id, quote.id)}
+                        className="opacity-0 group-hover/quote:opacity-100 text-text-muted hover:text-accent-coral p-1.5 transition-all"
+                        title="Alıntıyı sil"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-white/[0.015] border border-dashed border-white/10 text-center text-xs text-text-muted">
+                  Henüz bu kitaba ait bir alıntı eklenmedi. Yukarıdaki butondan ekleyebilirsiniz.
+                </div>
+              )}
+
+              {/* Inline quick quote form if active */}
+              {inlineQuoteBookId === book.id && (
+                <div className="p-4 rounded-2xl bg-[#0E143E] border border-accent-mint/40 space-y-3 shadow-xl animate-in fade-in duration-200">
+                  <span className="text-[10px] uppercase font-bold text-accent-mint tracking-wider block">
+                    Yeni Alıntı Ekle
+                  </span>
+                  <textarea
+                    rows={2}
+                    placeholder="Alıntıyı yazın (tırnak içinde italik görünecektir)..."
+                    value={inlineQuoteText}
+                    onChange={(e) => setInlineQuoteText(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 focus:border-accent-mint rounded-xl px-3 py-2 text-sm text-white font-serif italic focus:outline-none"
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      placeholder="Sayfa No"
+                      value={inlineQuotePage}
+                      onChange={(e) => setInlineQuotePage(e.target.value)}
+                      className="w-28 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInlineQuoteBookId(null);
+                          setInlineQuoteText('');
+                          setInlineQuotePage('');
+                        }}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-text-muted hover:text-white"
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveInlineQuote(book.id)}
+                        disabled={!inlineQuoteText.trim()}
+                        className="px-4 py-1.5 rounded-xl bg-accent-mint text-bg-deep font-black text-xs uppercase tracking-wider disabled:opacity-40"
+                      >
+                        Kaydet
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Book Actions Footer (Edit & Delete) */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+              <button
+                onClick={() => deleteBook(book.id)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-accent-coral/20 text-accent-coral text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Kitabı Sil</span>
+              </button>
+
+              <button
+                onClick={() => openEditBookModal(book)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Düzenle</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -257,6 +573,28 @@ export const BooksView: React.FC = () => {
             </div>
           )}
 
+          {/* Display Mode: Flat List vs By Year */}
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-white/[0.03] border border-white/5">
+            <button
+              onClick={() => setDisplayMode('flat')}
+              className={`p-1.5 rounded-xl transition-all ${
+                displayMode === 'flat' ? 'bg-white/15 text-white' : 'text-text-muted hover:text-white'
+              }`}
+              title="Düz Liste"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setDisplayMode('byYear')}
+              className={`p-1.5 rounded-xl transition-all ${
+                displayMode === 'byYear' ? 'bg-white/15 text-white' : 'text-text-muted hover:text-white'
+              }`}
+              title="Yıllara Göre Grupla"
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Search Input */}
           <div className="relative flex-1 max-w-xs">
             <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -286,253 +624,29 @@ export const BooksView: React.FC = () => {
             Yeni Kitap Ekle
           </button>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredBooks.map((book) => {
-            const isExpanded = expandedBookIds.has(book.id);
-            const coverBg = book.coverColor || '#8A4FFF';
-
-            return (
-              <div
-                key={book.id}
-                className="rounded-3xl bg-white/[0.025] hover:bg-white/[0.04] border border-white/10 transition-all duration-300 overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
-              >
-                {/* Book Card Main Header (Clickable to Expand) */}
-                <div
-                  onClick={() => toggleExpand(book.id)}
-                  className="p-5 tablet-p:p-6 cursor-pointer flex flex-col tablet-p:flex-row tablet-p:items-center justify-between gap-4 select-none"
-                >
-                  <div className="flex items-start tablet-p:items-center gap-4 min-w-0">
-                    {/* Simulated Aesthetic Book Spine / Mini Cover */}
-                    <div
-                      className="w-12 h-16 rounded-xl flex flex-col justify-between p-1.5 shadow-[0_8px_16px_rgba(0,0,0,0.4)] shrink-0 border border-white/20 transition-transform group-hover:scale-105"
-                      style={{
-                        background: `linear-gradient(135deg, ${coverBg}, ${coverBg}88)`,
-                      }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                      <Bookmark className="w-3.5 h-3.5 text-white/90 self-end" />
-                    </div>
-
-                    {/* Book Metadata */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        {book.genre && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white">
-                            {book.genre}
-                          </span>
-                        )}
-
-                        <span
-                          className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${
-                            book.status === 'read'
-                              ? 'bg-accent-mint/15 text-accent-mint'
-                              : book.status === 'reading'
-                              ? 'bg-accent-yellow/15 text-accent-yellow'
-                              : 'bg-white/10 text-text-muted'
-                          }`}
-                        >
-                          {book.status === 'read'
-                            ? 'Okundu'
-                            : book.status === 'reading'
-                            ? 'Okunuyor'
-                            : 'Okunacak'}
-                        </span>
-
-                        {book.completedDate && book.status === 'read' && (
-                          <span className="text-[11px] font-bold text-text-muted flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {book.completedDate.slice(0, 10)}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="text-xl tablet-p:text-2xl font-black font-display text-white tracking-tight leading-snug truncate">
-                        {book.title}
-                      </h3>
-
-                      <p className="text-xs font-bold text-text-secondary mt-0.5">
-                        {book.author}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right side: Pages, Stars & Expand toggle */}
-                  <div className="flex items-center justify-between tablet-p:justify-end gap-5 shrink-0 pt-2 tablet-p:pt-0 border-t tablet-p:border-t-0 border-white/5">
-                    {/* Star Rating */}
-                    {book.rating ? (
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }, (_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3.5 h-3.5 ${
-                              i < book.rating!
-                                ? 'fill-accent-yellow text-accent-yellow'
-                                : 'text-white/15'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {/* Total Pages Badge */}
-                    <span className="text-xs font-black text-white/90 tabular-nums px-2.5 py-1 rounded-xl bg-white/5 border border-white/10">
-                      {book.status === 'reading' && book.readPages
-                        ? `${book.readPages} / ${book.totalPages} sf`
-                        : `${book.totalPages} sayfa`}
-                    </span>
-
-                    {/* Expand icon */}
-                    <div className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-text-muted hover:text-white transition-colors">
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* EXPANDABLE SECTION: NOTES & QUOTES */}
-                {isExpanded && (
-                  <div className="p-5 tablet-p:p-8 pt-0 border-t border-white/10 bg-black/25 space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {/* 1. PERSONAL NOTES (Notlar) */}
-                    {book.notes ? (
-                      <div className="p-4 tablet-p:p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                        <span className="text-[10px] uppercase tracking-[0.25em] font-extrabold text-accent-pink block">
-                          KİŞİSEL NOTLAR & İNCELEME
-                        </span>
-                        <p className="text-sm tablet-p:text-base text-text-secondary leading-relaxed font-sans font-medium whitespace-pre-wrap">
-                          {book.notes}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {/* 2. QUOTES (Alıntılar - Tırnak içinde ve italik!) */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-[0.25em] font-black text-accent-mint flex items-center gap-1.5">
-                          <QuoteIcon className="w-3.5 h-3.5" />
-                          <span>ÖNE ÇIKAN ALINTILAR</span>
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => setInlineQuoteBookId(book.id)}
-                          className="px-3 py-1 rounded-xl bg-accent-mint/15 hover:bg-accent-mint/25 text-accent-mint text-[11px] font-black uppercase tracking-wider flex items-center gap-1 transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Alıntı Ekle</span>
-                        </button>
-                      </div>
-
-                      {/* Quotes List */}
-                      {book.quotes && book.quotes.length > 0 ? (
-                        <div className="space-y-3">
-                          {book.quotes.map((quote) => (
-                            <div
-                              key={quote.id}
-                              className="p-4 tablet-p:p-5 rounded-2xl bg-gradient-to-r from-white/[0.04] to-white/[0.01] border-l-4 border-l-accent-mint border-y border-r border-white/5 relative group/quote flex items-start justify-between gap-3"
-                            >
-                              <div className="flex-1 min-w-0">
-                                {/* The italic quote text in quotation marks */}
-                                <p className="font-serif italic text-white/95 text-base tablet-p:text-lg leading-relaxed tracking-wide selection:bg-accent-pink selection:text-white">
-                                  “{quote.text}”
-                                </p>
-                                {quote.page && (
-                                  <span className="text-xs font-bold text-accent-mint/90 mt-2 block font-sans tracking-wider">
-                                    — Sayfa {quote.page}
-                                  </span>
-                                )}
-                              </div>
-
-                              <button
-                                onClick={() => deleteQuoteFromBook(book.id, quote.id)}
-                                className="opacity-0 group-hover/quote:opacity-100 text-text-muted hover:text-accent-coral p-1.5 transition-all"
-                                title="Alıntıyı sil"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-4 rounded-2xl bg-white/[0.015] border border-dashed border-white/10 text-center text-xs text-text-muted">
-                          Henüz bu kitaba ait bir alıntı eklenmedi. Yukarıdaki butondan ekleyebilirsiniz.
-                        </div>
-                      )}
-
-                      {/* Inline quick quote form if active */}
-                      {inlineQuoteBookId === book.id && (
-                        <div className="p-4 rounded-2xl bg-[#0E143E] border border-accent-mint/40 space-y-3 shadow-xl animate-in fade-in duration-200">
-                          <span className="text-[10px] uppercase font-bold text-accent-mint tracking-wider block">
-                            Yeni Alıntı Ekle
-                          </span>
-                          <textarea
-                            rows={2}
-                            placeholder="Alıntıyı yazın (tırnak içinde italik görünecektir)..."
-                            value={inlineQuoteText}
-                            onChange={(e) => setInlineQuoteText(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 focus:border-accent-mint rounded-xl px-3 py-2 text-sm text-white font-serif italic focus:outline-none"
-                            autoFocus
-                          />
-                          <div className="flex items-center justify-between gap-2">
-                            <input
-                              type="text"
-                              placeholder="Sayfa No"
-                              value={inlineQuotePage}
-                              onChange={(e) => setInlineQuotePage(e.target.value)}
-                              className="w-28 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none"
-                            />
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setInlineQuoteBookId(null);
-                                  setInlineQuoteText('');
-                                  setInlineQuotePage('');
-                                }}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-text-muted hover:text-white"
-                              >
-                                Vazgeç
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleSaveInlineQuote(book.id)}
-                                disabled={!inlineQuoteText.trim()}
-                                className="px-4 py-1.5 rounded-xl bg-accent-mint text-bg-deep font-black text-xs uppercase tracking-wider disabled:opacity-40"
-                              >
-                                Kaydet
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Book Actions Footer (Edit & Delete) */}
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
-                      <button
-                        onClick={() => deleteBook(book.id)}
-                        className="px-4 py-2 rounded-xl bg-white/5 hover:bg-accent-coral/20 text-accent-coral text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Kitabı Sil</span>
-                      </button>
-
-                      <button
-                        onClick={() => openEditBookModal(book)}
-                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Düzenle</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+      ) : displayMode === 'byYear' ? (
+        /* BY YEAR GROUPED LIST */
+        <div className="space-y-8">
+          {booksByYear.map((group) => (
+            <div key={group.year} className="space-y-4">
+              <div className="flex items-center gap-3 pb-2 border-b border-white/10">
+                <span className="text-xl tablet-p:text-2xl font-black font-display text-white tracking-tight">
+                  {group.year}
+                </span>
+                <span className="text-xs font-bold text-accent-mint px-2.5 py-0.5 rounded-full bg-accent-mint/10 border border-accent-mint/20">
+                  {group.count} Kitap · {group.totalPages.toLocaleString('tr-TR')} Sayfa
+                </span>
               </div>
-            );
-          })}
+              <div className="space-y-4">
+                {group.books.map((book) => renderBookCard(book))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* FLAT LIST */
+        <div className="space-y-4">
+          {filteredBooks.map((book) => renderBookCard(book))}
         </div>
       )}
     </div>

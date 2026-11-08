@@ -85,5 +85,55 @@ describe('Books and Quotes in usePlannerStore', () => {
     book = usePlannerStore.getState().books.find((b) => b.id === bookId);
     expect(book?.quotes.length).toBe(0);
   });
+
+  it('supports adding and updating book with coverUrl', async () => {
+    const store = usePlannerStore.getState();
+    const testCover = 'https://example.com/cover.jpg';
+
+    await store.addBook({
+      title: 'Bilinmeyen Bir Kadının Mektubu',
+      author: 'Stefan Zweig',
+      totalPages: 70,
+      status: 'read',
+      coverUrl: testCover,
+      quotes: [],
+    });
+
+    let books = usePlannerStore.getState().books;
+    expect(books.length).toBe(1);
+    expect(books[0].coverUrl).toBe(testCover);
+
+    const bookId = books[0].id;
+    const updatedCover = 'data:image/webp;base64,sampleCompactDataUrl';
+    await store.updateBook(bookId, { coverUrl: updatedCover });
+
+    books = usePlannerStore.getState().books;
+    expect(books[0].coverUrl).toBe(updatedCover);
+  });
+
+  it('maintains backwards compatibility for legacy books without coverUrl', async () => {
+    // Seed storage with legacy book JSON missing coverUrl
+    const legacyBook = {
+      id: 'legacy-1',
+      title: 'Eski Kitap',
+      author: 'Eski Yazar',
+      totalPages: 200,
+      status: 'read',
+      coverColor: '#8A4FFF',
+      quotes: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    mockStorage['asapp:books'] = JSON.stringify([legacyBook]);
+
+    // Re-init store
+    await usePlannerStore.getState().init();
+
+    const books = usePlannerStore.getState().books;
+    expect(books.length).toBe(1);
+    expect(books[0].title).toBe('Eski Kitap');
+    expect(books[0].coverUrl).toBeUndefined();
+    expect(books[0].coverColor).toBe('#8A4FFF');
+  });
 });
 

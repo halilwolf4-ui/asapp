@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePlannerStore } from '../../store/usePlannerStore';
 import { BookQuote } from '../../types';
-import { X, Trash2, Plus, Star, Quote as QuoteIcon } from 'lucide-react';
+import { X, Trash2, Plus, Star, Quote as QuoteIcon, Upload, Search, Loader2, Bookmark } from 'lucide-react';
+import { resizeImageToDataUrl, findBookCover } from '../../utils/imageUtils';
 
 const COVER_COLORS = [
   { label: 'Mor', color: '#8A4FFF' },
@@ -36,8 +37,16 @@ export const BookModal: React.FC = () => {
   const [rating, setRating] = useState<number>(5);
   const [genre, setGenre] = useState('Felsefe');
   const [coverColor, setCoverColor] = useState('#8A4FFF');
+  const [coverUrl, setCoverUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [quotes, setQuotes] = useState<BookQuote[]>([]);
+
+  // Cover image states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [isFindingCover, setIsFindingCover] = useState(false);
+  const [coverMessage, setCoverMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
 
   // New quote draft inputs
   const [newQuoteText, setNewQuoteText] = useState('');
@@ -54,6 +63,7 @@ export const BookModal: React.FC = () => {
       setRating(editingBook.rating || 5);
       setGenre(editingBook.genre || 'Felsefe');
       setCoverColor(editingBook.coverColor || '#8A4FFF');
+      setCoverUrl(editingBook.coverUrl || '');
       setNotes(editingBook.notes || '');
       setQuotes(editingBook.quotes ? [...editingBook.quotes] : []);
     } else {
@@ -67,9 +77,12 @@ export const BookModal: React.FC = () => {
       setRating(5);
       setGenre('Felsefe');
       setCoverColor('#8A4FFF');
+      setCoverUrl('');
       setNotes('');
       setQuotes([]);
     }
+    setCoverMessage(null);
+    setQuotaError(null);
     setNewQuoteText('');
     setNewQuotePage('');
   }, [editingBook, isBookModalOpen]);
@@ -92,9 +105,60 @@ export const BookModal: React.FC = () => {
     setQuotes(quotes.filter((q) => q.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverMessage(null);
+    setIsProcessingFile(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      setCoverUrl(dataUrl);
+      setCoverMessage({ text: 'Kapak görseli başarıyla yüklendi.', type: 'success' });
+    } catch (err: any) {
+      setCoverMessage({ text: err.message || 'Görsel işlenirken bir hata oluştu.', type: 'error' });
+    } finally {
+      setIsProcessingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFindCover = async () => {
+    if (!title.trim()) {
+      setCoverMessage({ text: 'Kapak aramak için önce kitap adını girin.', type: 'error' });
+      return;
+    }
+    setCoverMessage(null);
+    setIsFindingCover(true);
+    try {
+      const found = await findBookCover(title, author);
+      if (found) {
+        setCoverUrl(found);
+        setCoverMessage({ text: 'Kapak görseli başarıyla bulundu!', type: 'success' });
+      } else {
+        setCoverMessage({
+          text: 'Kapak bulunamadı, dosya yükleyebilir veya link yapıştırabilirsin.',
+          type: 'error',
+        });
+      }
+    } catch {
+      setCoverMessage({
+        text: 'Arama sırasında hata oluştu. Link yapıştırabilir veya dosya seçebilirsin.',
+        type: 'error',
+      });
+    } finally {
+      setIsFindingCover(false);
+    }
+  };
+
+  const handleRemoveCover = () => {
+    setCoverUrl('');
+    setCoverMessage(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !author.trim()) return;
+    setQuotaError(null);
 
     // If there's an unsaved quote draft in the input, add it as well
     let finalQuotes = [...quotes];
@@ -116,14 +180,24 @@ export const BookModal: React.FC = () => {
       rating,
       genre: genre.trim() || 'Genel',
       coverColor,
+      coverUrl: coverUrl.trim() || undefined,
       notes: notes.trim() || undefined,
       quotes: finalQuotes,
     };
 
-    if (editingBook) {
-      updateBook(editingBook.id, payload);
-    } else {
-      addBook(payload);
+    try {
+      if (editingBook) {
+        await updateBook(editingBook.id, payload);
+      } else {
+        await addBook(payload);
+      }
+    } catch (err: any) {
+      console.error('Book save error:', err);
+      if (err?.name === 'QuotaExceededError' || err?.message?.includes('quota') || err?.message?.includes('QuotaExceeded')) {
+        setQuotaError('Tarayıcı hafıza sınırı aşıldı! Lütfen daha küçük bir görsel veya doğrudan web bağlantısı (URL) kullanın.');
+      } else {
+        setQuotaError('Kitap kaydedilirken beklenmeyen bir hata oluştu: ' + (err?.message || 'Bilinmeyen hata'));
+      }
     }
   };
 
@@ -309,6 +383,122 @@ export const BookModal: React.FC = () => {
             ) : null}
           </div>
 
+          {/* Cover Photo Section */}
+          <div className="space-y-3">
+            <label className="text-xs uppercase font-extrabold tracking-wider text-text-muted block">
+              Kapak Fotoğrafı
+            </label>
+
+            <div className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-2xl bg-white/[0.025] border border-white/10">
+              {/* Preview Box */}
+              <div className="w-16 h-22 rounded-xl overflow-hidden shrink-0 border border-white/20 shadow-[0_4px_16px_rgba(0,0,0,0.4)] relative flex items-center justify-center bg-black/30 aspect-[2/3]">
+                {coverUrl ? (
+                  <img
+                    src={coverUrl}
+                    alt="Kapak Önizleme"
+                    className="w-full h-full object-cover"
+                    onError={() => {
+                      setCoverMessage({ text: 'Görsel yüklenemedi. Lütfen bağlantıyı kontrol edin.', type: 'error' });
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex flex-col justify-between p-1.5"
+                    style={{ background: `linear-gradient(135deg, ${coverColor}, ${coverColor}88)` }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                    <Bookmark className="w-3.5 h-3.5 text-white/90 self-end" />
+                  </div>
+                )}
+              </div>
+
+              {/* Controls */}
+              <div className="flex-1 w-full space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+
+                  {/* Method A: Upload */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessingFile || isFindingCover}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    {isProcessingFile ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>Dosya Seç</span>
+                  </button>
+
+                  {/* Method C: Find Cover */}
+                  <button
+                    type="button"
+                    onClick={handleFindCover}
+                    disabled={!title.trim() || isFindingCover || isProcessingFile}
+                    title={!title.trim() ? 'Aramak için önce kitap adını girin' : 'Google Books ve Open Library ile ara'}
+                    className="px-3.5 py-2 rounded-xl bg-accent-pink/20 hover:bg-accent-pink/30 text-accent-pink text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    {isFindingCover ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Search className="w-3.5 h-3.5" />
+                    )}
+                    <span>Kapak Bul</span>
+                  </button>
+
+                  {/* Remove */}
+                  {coverUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCover}
+                      className="px-3 py-2 rounded-xl bg-white/5 hover:bg-accent-coral/20 text-accent-coral text-xs font-bold flex items-center gap-1.5 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Kaldır</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Method B: Direct URL Input */}
+                <div>
+                  <input
+                    type="url"
+                    placeholder="https://... görsel bağlantısı yapıştırın"
+                    value={coverUrl.startsWith('data:') ? '' : coverUrl}
+                    onChange={(e) => {
+                      setCoverUrl(e.target.value.trim());
+                      setCoverMessage(null);
+                    }}
+                    className="w-full min-h-[38px] bg-white/5 border border-white/10 focus:border-accent-pink rounded-xl px-3 py-1.5 text-xs text-white placeholder-text-muted/60 focus:outline-none transition-colors"
+                  />
+                  {coverUrl.startsWith('data:') && (
+                    <span className="text-[11px] text-accent-mint font-semibold block mt-1">
+                      ✓ Cihazdan / aramadan yüklenmiş görsel aktif
+                    </span>
+                  )}
+                </div>
+
+                {coverMessage && (
+                  <p
+                    className={`text-xs font-medium ${
+                      coverMessage.type === 'error' ? 'text-accent-coral' : 'text-accent-mint'
+                    }`}
+                  >
+                    {coverMessage.text}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Theme Cover Color Picker */}
           <div>
             <label className="text-xs uppercase font-extrabold tracking-wider text-text-muted block mb-2">
@@ -419,6 +609,12 @@ export const BookModal: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {quotaError && (
+            <div className="p-3.5 rounded-2xl bg-accent-coral/15 border border-accent-coral/30 text-accent-coral text-xs font-bold animate-in fade-in">
+              {quotaError}
+            </div>
+          )}
         </form>
 
         {/* FOOTER */}

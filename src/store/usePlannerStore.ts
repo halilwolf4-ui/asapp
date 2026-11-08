@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Item, Category, ViewMode, Horizon, ItemStatus, Book, BookQuote } from '../types';
+import { Item, Category, ViewMode, Horizon, ItemStatus, Book, BookQuote, MediaItem } from '../types';
 import { storageRepo } from '../services/storage/storageRepository';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 import { SEED_ITEMS, SEED_BOOKS } from '../constants/seedData';
@@ -11,6 +11,7 @@ interface PlannerState {
   items: Item[];
   categories: Category[];
   books: Book[];
+  mediaItems: MediaItem[];
   activeView: ViewMode;
   selectedDate: string; // 'yyyy-MM-dd'
   quote: string;
@@ -20,6 +21,8 @@ interface PlannerState {
   editingItem: Item | null;
   isBookModalOpen: boolean;
   editingBook: Book | null;
+  isMediaModalOpen: boolean;
+  editingMediaItem: MediaItem | null;
   modalPresetHorizon: Horizon;
   modalPresetParentId?: string;
   modalPresetDate?: string;
@@ -39,6 +42,9 @@ interface PlannerState {
   openCreateBookModal: () => void;
   openEditBookModal: (book: Book) => void;
   closeBookModal: () => void;
+  openCreateMediaModal: () => void;
+  openEditMediaModal: (mediaItem: MediaItem) => void;
+  closeMediaModal: () => void;
   dismissSubGoalTip: () => void;
   setStatsOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
@@ -59,6 +65,9 @@ interface PlannerState {
   deleteBook: (id: string) => Promise<void>;
   addQuoteToBook: (bookId: string, quote: { text: string; page?: number | string }) => Promise<void>;
   deleteQuoteFromBook: (bookId: string, quoteId: string) => Promise<void>;
+  addMediaItem: (data: Omit<MediaItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateMediaItem: (id: string, updates: Partial<MediaItem>) => Promise<void>;
+  deleteMediaItem: (id: string) => Promise<void>;
   resetToSampleData: () => Promise<void>;
   exportBackup: () => Promise<string>;
   importBackup: (json: string) => Promise<boolean>;
@@ -68,6 +77,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   items: [],
   categories: DEFAULT_CATEGORIES,
   books: [],
+  mediaItems: [],
   activeView: 'today', // Start with Today view as default
   selectedDate: formatIsoDateOnly(new Date()),
   quote: 'Küçük adımlar, büyük vizyonların temelidir.',
@@ -76,6 +86,8 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   editingItem: null,
   isBookModalOpen: false,
   editingBook: null,
+  isMediaModalOpen: false,
+  editingMediaItem: null,
   modalPresetHorizon: 'day',
   modalPresetParentId: undefined,
   modalPresetDate: undefined,
@@ -89,6 +101,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     let items = await storageRepo.getItems();
     let categories = await storageRepo.getCategories();
     let books = await storageRepo.getBooks();
+    let mediaItems = await storageRepo.getMediaItems();
     const quote = await storageRepo.getQuote();
 
     if (!items || items.length === 0) {
@@ -106,7 +119,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       await storageRepo.saveBooks(books);
     }
 
-    set({ items, categories, books, quote });
+    set({ items, categories, books, mediaItems, quote });
   },
 
   setActiveView: (view) => set({ activeView: view }),
@@ -152,6 +165,10 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   openCreateBookModal: () => set({ isBookModalOpen: true, editingBook: null }),
   openEditBookModal: (book) => set({ isBookModalOpen: true, editingBook: book }),
   closeBookModal: () => set({ isBookModalOpen: false, editingBook: null }),
+
+  openCreateMediaModal: () => set({ isMediaModalOpen: true, editingMediaItem: null }),
+  openEditMediaModal: (mediaItem) => set({ isMediaModalOpen: true, editingMediaItem: mediaItem }),
+  closeMediaModal: () => set({ isMediaModalOpen: false, editingMediaItem: null }),
 
   dismissSubGoalTip: () => set({ subGoalTipGoal: null }),
 
@@ -440,6 +457,40 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
     const updatedQuotes = (book.quotes || []).filter((q) => q.id !== quoteId);
     await get().updateBook(bookId, { quotes: updatedQuotes });
+  },
+
+  addMediaItem: async (data) => {
+    const now = new Date().toISOString();
+    const newMedia: MediaItem = {
+      ...data,
+      id: 'media_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const updated = [newMedia, ...get().mediaItems];
+    await storageRepo.saveMediaItems(updated);
+    set({ mediaItems: updated, isMediaModalOpen: false, editingMediaItem: null });
+  },
+
+  updateMediaItem: async (id, updates) => {
+    const updated = get().mediaItems.map((m) => {
+      if (m.id === id) {
+        return {
+          ...m,
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return m;
+    });
+    await storageRepo.saveMediaItems(updated);
+    set({ mediaItems: updated, isMediaModalOpen: false, editingMediaItem: null });
+  },
+
+  deleteMediaItem: async (id) => {
+    const updated = get().mediaItems.filter((m) => m.id !== id);
+    await storageRepo.saveMediaItems(updated);
+    set({ mediaItems: updated, isMediaModalOpen: false, editingMediaItem: null });
   },
 
   resetToSampleData: async () => {
