@@ -135,5 +135,24 @@ describe('Books and Quotes in usePlannerStore', () => {
     expect(books[0].coverUrl).toBeUndefined();
     expect(books[0].coverColor).toBe('#8A4FFF');
   });
+
+  it('does not re-seed sample books after all books are deleted', async () => {
+    // 1. Initialize store for first time (seeds books)
+    await usePlannerStore.getState().init();
+    expect(usePlannerStore.getState().books.length).toBeGreaterThan(0);
+
+    // 2. Delete all books
+    const allBookIds = usePlannerStore.getState().books.map((b) => b.id);
+    for (const id of allBookIds) {
+      await usePlannerStore.getState().deleteBook(id);
+    }
+    expect(usePlannerStore.getState().books.length).toBe(0);
+
+    // 3. Re-initialize store (simulate page refresh)
+    await usePlannerStore.getState().init();
+
+    // 4. Books should stay empty and NOT be re-seeded!
+    expect(usePlannerStore.getState().books.length).toBe(0);
+  });
 });
 

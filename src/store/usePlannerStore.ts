@@ -114,7 +114,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       await storageRepo.saveCategories(categories);
     }
 
-    if (!books || books.length === 0) {
+    if (books === null) {
       books = SEED_BOOKS;
       await storageRepo.saveBooks(books);
     }

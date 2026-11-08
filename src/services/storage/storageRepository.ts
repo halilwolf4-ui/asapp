@@ -7,7 +7,7 @@ export interface StorageRepository {
   saveCategories(categories: Category[]): Promise<void>;
   getQuote(): Promise<string>;
   saveQuote(quote: string): Promise<void>;
-  getBooks(): Promise<Book[]>;
+  getBooks(): Promise<Book[] | null>;
   saveBooks(books: Book[]): Promise<void>;
   getMediaItems(): Promise<MediaItem[]>;
   saveMediaItems(mediaItems: MediaItem[]): Promise<void>;
@@ -115,10 +115,10 @@ export class LocalStorageRepository implements StorageRepository {
     localStorage.setItem(QUOTE_KEY, quote);
   }
 
-  async getBooks(): Promise<Book[]> {
+  async getBooks(): Promise<Book[] | null> {
     this.migrateLegacyKeys();
     const data = localStorage.getItem(BOOKS_KEY);
-    if (!data) return [];
+    if (data === null) return null;
     try {
       return JSON.parse(data);
     } catch {
@@ -149,7 +149,7 @@ export class LocalStorageRepository implements StorageRepository {
     const items = await this.getItems();
     const categories = await this.getCategories();
     const quote = await this.getQuote();
-    const books = await this.getBooks();
+    const books = (await this.getBooks()) || [];
     const media = await this.getMediaItems();
     return JSON.stringify({ items, categories, quote, books, media, exportedAt: new Date().toISOString() }, null, 2);
   }
